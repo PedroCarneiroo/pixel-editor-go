@@ -8,102 +8,89 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// variaveis globais
-var mapa [32][32]color.RGBA
-var tamanho_quadrado = 20 // 640 dividido por 32
+const (
+	screenWidth  = 640
+	screenHeight = 640
+	gridSize     = 32
+	cellSize     = screenWidth / gridSize
+)
 
-type Joguinho struct {
-	// nao precisa de nada aqui pq to usando variavel global
+type App struct {
+	canvas [gridSize][gridSize]color.RGBA
 }
 
-func (j *Joguinho) Update() error {
-	// desenhar com clique esquerdo
+func NewApp() *App {
+	app := &App{}
+	app.ClearCanvas()
+	return app
+}
+
+func (a *App) ClearCanvas() {
+	for x := 0; x < gridSize; x++ {
+		for y := 0; y < gridSize; y++ {
+			a.canvas[x][y] = color.RGBA{255, 255, 255, 255}
+		}
+	}
+}
+
+func (a *App) Update() error {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		pos_x := x / tamanho_quadrado
-		pos_y := y / tamanho_quadrado
+		mx, my := ebiten.CursorPosition()
+		cx, cy := mx/cellSize, my/cellSize
 
-		// verificando se nao ta clicando fora da tela pra nao dar erro
-		if pos_x >= 0 {
-			if pos_x < 32 {
-				if pos_y >= 0 {
-					if pos_y < 32 {
-						mapa[pos_x][pos_y] = color.RGBA{0, 0, 0, 255}
-					}
-				}
-			}
+		if cx >= 0 && cx < gridSize && cy >= 0 && cy < gridSize {
+			a.canvas[cx][cy] = color.RGBA{0, 0, 0, 255}
 		}
 	}
 
-	// apagar com clique direito (copiei e colei de cima e mudei a cor)
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {
-		x, y := ebiten.CursorPosition()
-		pos_x := x / tamanho_quadrado
-		pos_y := y / tamanho_quadrado
+		mx, my := ebiten.CursorPosition()
+		cx, cy := mx/cellSize, my/cellSize
 
-		if pos_x >= 0 && pos_x < 32 && pos_y >= 0 && pos_y < 32 {
-			mapa[pos_x][pos_y] = color.RGBA{255, 255, 255, 255}
+		if cx >= 0 && cx < gridSize && cy >= 0 && cy < gridSize {
+			a.canvas[cx][cy] = color.RGBA{255, 255, 255, 255}
 		}
 	}
 
-	// botao C limpa a tela toda
 	if ebiten.IsKeyPressed(ebiten.KeyC) {
-		for i := 0; i < 32; i++ {
-			for k := 0; k < 32; k++ {
-				mapa[i][k] = color.RGBA{255, 255, 255, 255}
-			}
-		}
+		a.ClearCanvas()
 	}
 
 	return nil
 }
 
-func (j *Joguinho) Draw(tela *ebiten.Image) {
-	// desenha os quadradinhos
-	for i := 0; i < 32; i++ {
-		for k := 0; k < 32; k++ {
-			cor_atual := mapa[i][k]
+func (a *App) Draw(screen *ebiten.Image) {
+	for x := 0; x < gridSize; x++ {
+		for y := 0; y < gridSize; y++ {
+			c := a.canvas[x][y]
 			vector.DrawFilledRect(
-				tela,
-				float32(i*tamanho_quadrado),
-				float32(k*tamanho_quadrado),
-				float32(tamanho_quadrado),
-				float32(tamanho_quadrado),
-				cor_atual,
+				screen,
+				float32(x*cellSize),
+				float32(y*cellSize),
+				float32(cellSize),
+				float32(cellSize),
+				c,
 				true,
 			)
 		}
 	}
 
-	// faz as linhas cinzas por cima
-	cor_linha := color.RGBA{200, 200, 200, 255}
-	for cont := 0; cont <= 32; cont++ {
-		// linha pra baixo
-		vector.StrokeLine(tela, float32(cont*20), 0, float32(cont*20), 640, 1, cor_linha, true)
-		// linha pro lado
-		vector.StrokeLine(tela, 0, float32(cont*20), 640, float32(cont*20), 1, cor_linha, true)
+	gridColor := color.RGBA{200, 200, 200, 255}
+	for i := 0; i <= gridSize; i++ {
+		vector.StrokeLine(screen, float32(i*cellSize), 0, float32(i*cellSize), float32(screenHeight), 1, gridColor, true)
+		vector.StrokeLine(screen, 0, float32(i*cellSize), float32(screenWidth), float32(i*cellSize), 1, gridColor, true)
 	}
 }
 
-func (j *Joguinho) Layout(largura, altura int) (int, int) {
-	return 640, 640
+func (a *App) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
 }
 
 func main() {
-	// pinta tudo de branco antes de começar
-	for a := 0; a < 32; a++ {
-		for b := 0; b < 32; b++ {
-			mapa[a][b] = color.RGBA{255, 255, 255, 255}
-		}
-	}
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Editor de Pixel Art em Go")
 
-	ebiten.SetWindowSize(640, 640)
-	ebiten.SetWindowTitle("meu paint")
-
-	meuJogo := &Joguinho{}
-	err := ebiten.RunGame(meuJogo)
-
-	if err != nil {
+	if err := ebiten.RunGame(NewApp()); err != nil {
 		log.Fatal(err)
 	}
 }
